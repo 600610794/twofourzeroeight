@@ -35,28 +35,56 @@ namespace twozerofoureight
             if (i != 0)
             {
                 l.Text = Convert.ToString(i);
-            } else {
+            }
+            else
+            {
                 l.Text = "";
             }
             switch (i)
             {
                 case 0:
-                    l.BackColor = Color.Gray;
+                    l.BackColor = Color.LightYellow;
                     break;
                 case 2:
-                    l.BackColor = Color.DarkGray;
+                    l.BackColor = Color.LightGray;
                     break;
                 case 4:
-                    l.BackColor = Color.Orange;
+                    l.BackColor = Color.NavajoWhite;
                     break;
                 case 8:
-                    l.BackColor = Color.Red;
+                    l.BackColor = Color.SandyBrown;
                     break;
-                default:
+                case 16:
+                    l.BackColor = Color.Chocolate;
+                    break;
+                case 32:
+                    l.BackColor = Color.Salmon;
+                    break;
+                case 64:
+                    l.BackColor = Color.OrangeRed;
+                    break;
+                case 128:
+                    l.BackColor = Color.Yellow;
+                    break;
+                case 256:
+                    l.BackColor = Color.Gold;
+                    break;
+                case 512:
+                    l.BackColor = Color.Goldenrod;
+                    break;
+                case 1024:
+                    l.BackColor = Color.LimeGreen;
+                    break;
+                case 2048:
                     l.BackColor = Color.Green;
                     break;
+                default:
+                    l.BackColor = Color.ForestGreen;
+                    break;
             }
+
         }
+
         private void UpdateBoard(int[,] board)
         {
             UpdateTile(lbl00,board[0, 0]);
@@ -75,6 +103,17 @@ namespace twozerofoureight
             UpdateTile(lbl31,board[3, 1]);
             UpdateTile(lbl32,board[3, 2]);
             UpdateTile(lbl33,board[3, 3]);
+
+            label1.Text = Convert.ToString(((TwoZeroFourEightModel)model).GetScore(0));
+
+
+            if (((TwoZeroFourEightModel)model).BoardFull(board))
+            {
+                if (!((TwoZeroFourEightModel)model).Move(board))
+                {
+                    MessageBox.Show("Game Over");
+                }
+            }
         }
 
         private void btnLeft_Click(object sender, EventArgs e)
@@ -97,5 +136,29 @@ namespace twozerofoureight
             controller.ActionPerformed(TwoZeroFourEightController.DOWN);
         }
 
+        protected override bool ProcessCmdKey(ref Message msg, Keys keyData)
+        {
+            if (keyData == (Keys.Right))
+            {
+                btnRight.PerformClick();
+                return true;
+            }
+            if (keyData == (Keys.Left))
+            {
+                btnLeft.PerformClick();
+                return true;
+            }
+            if (keyData == (Keys.Up))
+            {
+                btnUp.PerformClick();
+                return true;
+            }
+            if (keyData == (Keys.Down))
+            {
+                btnDown.PerformClick();
+                return true;
+            }
+            return base.ProcessCmdKey(ref msg, keyData);
+        }
     }
 }

@@ -11,6 +11,8 @@ namespace twozerofoureight
         protected int boardSize; // default is 4
         protected int[,] board;
         protected Random rand;
+        protected int[] range;
+        int score = 0;
 
         public TwoZeroFourEightModel() : this(4)
         {
@@ -21,15 +23,17 @@ namespace twozerofoureight
         {
             boardSize = size;
             board = new int[boardSize, boardSize];
-            var range = Enumerable.Range(0, boardSize);
-            foreach(int i in range) {
-                foreach(int j in range) {
-                    board[i,j] = 0;
+            range = Enumerable.Range(0, boardSize).ToArray();
+            foreach (int i in range)
+            {
+                foreach (int j in range)
+                {
+                    board[i, j] = 0;
                 }
             }
             rand = new Random();
-            board = Random(board);
-            NotifyAll();
+            // initialize board
+            HandleChanges();
         }
 
         public int[,] GetBoard()
@@ -37,7 +41,7 @@ namespace twozerofoureight
             return board;
         }
 
-        private int[,] Random(int[,] input)
+        private void AddRandomSlot()
         {
             while (true)
             {
@@ -46,219 +50,206 @@ namespace twozerofoureight
                 if (board[x, y] == 0)
                 {
                     board[x, y] = 2;
-                    break;
+                    return;
                 }
             }
-            return input;
+        }
+
+        // Perform shift and merge to the left of the given array.
+        protected bool ShiftAndMerge(int[] buffer)
+        {
+            bool changed = false; // whether the array has changed
+            int pos = 0; // next available slot index
+            int lastMergedSlot = -1; // last slot that resulted from merging
+            foreach (int k in range)
+            {
+                if (buffer[k] != 0) // nonempty slot
+                {
+                    // check if we can merge with the previous slot
+                    if (pos > 0 && pos - 1 > lastMergedSlot && buffer[pos - 1] == buffer[k])
+                    {
+                        // merge
+                        buffer[pos - 1] *= 2;
+                        GetScore(buffer[pos - 1]);
+                        buffer[k] = 0;
+                        lastMergedSlot = pos - 1;
+                        changed = true;
+                    }
+                    else
+                    {
+                        // shift to the next available slot
+                        buffer[pos] = buffer[k];
+                        if (pos != k)
+                        {
+                            buffer[k] = 0;
+                            changed = true;
+                        }
+                        // move the next available slot
+                        pos++;
+                    }
+                }
+            }
+            return changed;
+        }
+
+        protected void HandleChanges(bool changed = true)
+        {
+            // if the board has changed, add a new number
+            // and notify all views
+            if (changed)
+            {
+                AddRandomSlot();
+                NotifyAll();
+            }
         }
 
         public void PerformDown()
         {
-            int[] buffer;
-            int pos;
-            int[] rangeX = Enumerable.Range(0, boardSize).ToArray();
-            int[] rangeY = Enumerable.Range(0, boardSize).ToArray();
-            Array.Reverse(rangeY);
-            foreach (int i in rangeX)
+            bool changed = false; // whether the board has changed
+            foreach (int i in range)
             {
-                pos = 0;
-                buffer = new int[4];
-                foreach (int k in rangeX)
+                int[] buffer = new int[boardSize];
+                // extract the current column from bottom to top
+                foreach (int j in range)
                 {
-                    buffer[k] = 0;
+                    buffer[boardSize - j - 1] = board[j, i];
                 }
-                // shift down
-                foreach (int j in rangeY)
-                {
-                    if (board[j, i] != 0)
-                    {
-                        buffer[pos] = board[j, i];
-                        pos++;
-                    }
-                }
-                // check duplicate
-                foreach (int j in rangeX)
-                {
-                    if (j > 0 && buffer[j] != 0 && buffer[j] == buffer[j - 1])
-                    {
-                        buffer[j - 1] *= 2;
-                        buffer[j] = 0;
-                    }
-                }
-                // shift down again
-                pos = 3;
-                foreach (int j in rangeX)
-                {
-                    if (buffer[j] != 0)
-                    {
-                        board[pos, i] = buffer[j];
-                        pos--;
-                    }
-                }
+                // process the extracted array
+                // also track changes
+                changed = ShiftAndMerge(buffer) || changed;
                 // copy back
-                for (int k = pos; k != -1; k--)
+                foreach (int j in range)
                 {
-                    board[k, i] = 0;
+                    board[j, i] = buffer[boardSize - j - 1];
                 }
             }
-            board = Random(board);
-            NotifyAll();
+            HandleChanges(changed);
         }
 
         public void PerformUp()
         {
-            int[] buffer;
-            int pos;
-
-            int[] range = Enumerable.Range(0, boardSize).ToArray();
+            bool changed = false; // whether the board has changed
             foreach (int i in range)
             {
-                pos = 0;
-                buffer = new int[4];
-                foreach (int k in range)
-                {
-                    buffer[k] = 0;
-                }
-                // shift up
+                int[] buffer = new int[boardSize];
+                // extract the current column from top to bottom
                 foreach (int j in range)
                 {
-                    if (board[j, i] != 0)
-                    {
-                        buffer[pos] = board[j, i];
-                        pos++;
-                    }
+                    buffer[j] = board[j, i];
                 }
-                // check duplicate
-                foreach (int j in range)
-                {
-                    if (j > 0 && buffer[j] != 0 && buffer[j] == buffer[j - 1])
-                    {
-                        buffer[j - 1] *= 2;
-                        buffer[j] = 0;
-                    }
-                }
-                // shift up again
-                pos = 0;
-                foreach (int j in range)
-                {
-                    if (buffer[j] != 0)
-                    {
-                        board[pos, i] = buffer[j];
-                        pos++;
-                    }
-                }
+                // process the extracted array
+                // also track changes
+                changed = ShiftAndMerge(buffer) || changed;
                 // copy back
-                for (int k = pos; k != boardSize; k++)
+                foreach (int j in range)
                 {
-                    board[k, i] = 0;
+                    board[j, i] = buffer[j];
                 }
             }
-            board = Random(board);
-            NotifyAll();
+            HandleChanges(changed);
         }
 
         public void PerformRight()
         {
-            int[] buffer;
-            int pos;
-
-            int[] rangeX = Enumerable.Range(0, boardSize).ToArray();
-            int[] rangeY = Enumerable.Range(0, boardSize).ToArray();
-            Array.Reverse(rangeX);
-            foreach (int i in rangeY)
+            bool changed = false; // whether the board has changed
+            foreach (int i in range)
             {
-                pos = 0;
-                buffer = new int[4];
-                foreach (int k in rangeY)
+                int[] buffer = new int[boardSize];
+                // extract the current column from right to left
+                foreach (int j in range)
                 {
-                    buffer[k] = 0;
+                    buffer[boardSize - j - 1] = board[i, j];
                 }
-                // shift right
-                foreach (int j in rangeX)
-                {
-                    if (board[i, j] != 0)
-                    {
-                        buffer[pos] = board[i, j];
-                        pos++;
-                    }
-                }
-                // check duplicate
-                foreach (int j in rangeY)
-                {
-                    if (j > 0 && buffer[j] != 0 && buffer[j] == buffer[j - 1])
-                    {
-                        buffer[j - 1] *= 2;
-                        buffer[j] = 0;
-                    }
-                }
-                // shift right again
-                pos = 3;
-                foreach (int j in rangeY)
-                {
-                    if (buffer[j] != 0)
-                    {
-                        board[i, pos] = buffer[j];
-                        pos--;
-                    }
-                }
+                // process the extracted array
+                // also track changes
+                changed = ShiftAndMerge(buffer) || changed;
                 // copy back
-                for (int k = pos; k != -1; k--)
+                foreach (int j in range)
                 {
-                    board[i, k] = 0;
+                    board[i, j] = buffer[boardSize - j - 1];
                 }
             }
-            board = Random(board);
-            NotifyAll();
+            HandleChanges(changed);
         }
 
         public void PerformLeft()
         {
-            int[] buffer;
-            int pos;
-            int[] range = Enumerable.Range(0, boardSize).ToArray();
+            bool changed = false; // whether the board has changed
             foreach (int i in range)
             {
-                pos = 0;
-                buffer = new int[boardSize];
-                foreach (int k in range)
-                {
-                    buffer[k] = 0;
-                }
-                // shift left
+                int[] buffer = new int[boardSize];
+                // extract the current column from left to right
                 foreach (int j in range)
+                {
+                    buffer[j] = board[i, j];
+                }
+                // process the extracted array
+                // also track changes
+                changed = ShiftAndMerge(buffer) || changed;
+                // copy back
+                foreach (int j in range)
+                {
+                    board[i, j] = buffer[j];
+                }
+            }
+            HandleChanges(changed);
+        }
+
+        public bool BoardFull(int[,] board)
+        {
+            int count = 0;
+            for (int i = 0; i < 4; i++)
+            {
+                for (int j = 0; j < 4; j++)
                 {
                     if (board[i, j] != 0)
                     {
-                        buffer[pos] = board[i, j];
-                        pos++;
+                        count++;
                     }
-                }
-                // check duplicate
-                foreach (int j in range)
-                {
-                    if (j > 0 && buffer[j] != 0 && buffer[j] == buffer[j - 1])
-                    {
-                        buffer[j - 1] *= 2;
-                        buffer[j] = 0;
-                    }
-                }
-                // shift left again
-                pos = 0;
-                foreach (int j in range)
-                {
-                    if (buffer[j] != 0)
-                    {
-                        board[i, pos] = buffer[j];
-                        pos++;
-                    }
-                }
-                for (int k = pos; k != boardSize; k++)
-                {
-                    board[i, k] = 0;
                 }
             }
-            board = Random(board);
-            NotifyAll();
+            if (count == 16)
+            {
+                return true;
+            }
+            return false;
         }
+
+        public bool Move(int[,] board)
+        {
+            int count = 0;
+            for (int i = 0; i < 3; i++)
+            {
+                for (int j = 0; j < 4; j++)
+                {
+                    if (board[i, j] == board[i + 1, j])
+                    {
+                        count++;
+                    }
+                }
+            }
+            for (int i = 0; i < 4; i++)
+            {
+                for (int j = 0; j < 3; j++)
+                {
+                    if (board[i, j] == board[i, j + 1])
+                    {
+                        count++;
+                    }
+                }
+            }
+            if (count == 0)
+            {
+                return false;
+            }
+            return true;
+        }
+
+        public int GetScore(int s) 
+        {
+            score += s;
+            return score;
+        }
+        
     }
 }
